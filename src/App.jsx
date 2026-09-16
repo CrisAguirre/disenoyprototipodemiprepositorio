@@ -2,7 +2,25 @@ import { useEffect, useMemo, useState } from "react";
 import { AREAS, NIVELES, RECURSOS_INICIALES, ROLES, TIPOS } from "./data/recursos.js";
 import "./App.css";
 
-const LS_KEY = "repo-recursos-v1";
+const LS_KEY = "repo-recursos-v2";
+
+function fichaTexto(r) {
+  return [
+    "EduRepo · Repositorio temático Didáctica TIC — Universidad de Cartagena",
+    "Ficha del recurso (prototipo Actividad 2)",
+    "=".repeat(60),
+    `Título: ${r.titulo}`,
+    `Autor: ${r.autor}`,
+    `Tipo: ${r.tipo} | Área: ${r.area} | Nivel: ${r.nivel}`,
+    `Descripción: ${r.descripcion}`,
+    `Licencia: ${r.licencia} | Formato: ${r.formato}`,
+    `Fecha: ${r.fecha} | Idioma: ${r.idioma || "Español"}`,
+    `Enlace: ${r.url || "—"}`,
+    `Calificación: ${r.rating} (${r.votos} votos) | Descargas: ${r.descargas}`,
+    "",
+    "Uso académico. Respete derechos de autor (Ley 23 de 1982, Ley 1915 de 2018) y cite en APA v7.",
+  ].join("\n");
+}
 
 function loadRecursos() {
   try {
@@ -72,10 +90,42 @@ export default function App() {
   }), [recursos]);
 
   function descargar(recurso) {
+    // 1. Contador (flujo de descarga visible en la interfaz)
     setRecursos((prev) => prev.map((r) => r.id === recurso.id ? { ...r, descargas: (r.descargas || 0) + 1 } : r));
-    if (detalle && detalle.id === recurso.id) {
-      setDetalle({ ...detalle, descargas: (detalle.descargas || 0) + 1 });
+    setDetalle((prev) => (prev && prev.id === recurso.id ? { ...prev, descargas: (prev.descargas || 0) + 1 } : prev));
+
+    // 2. Si el recurso trae URL real, abrirla en pestaña nueva
+    const url = (recurso.url || "").trim();
+    if (/^https?:\/\//i.test(url)) {
+      window.open(url, "_blank", "noopener,noreferrer");
     }
+
+    // 3. Siempre descargar la ficha del recurso (garantiza botón funcional)
+    try {
+      const blob = new Blob([fichaTexto(recurso)], { type: "text/plain;charset=utf-8" });
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = `EduRepo-${recurso.id}-ficha.txt`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+    } catch (e) {
+      console.error("Descarga falló:", e);
+      alert("No se pudo generar el archivo. Verifica permisos del navegador.");
+    }
+  }
+
+  function limpiarFiltros() {
+    setQ(""); setFTipo("Todos"); setFArea("Todas"); setFNivel("Todos"); setOrden("relevancia");
+  }
+
+  function restablecerDemo() {
+    if (!confirm("¿Restablecer los 12 recursos de ejemplo?")) return;
+    localStorage.removeItem(LS_KEY);
+    setRecursos(RECURSOS_INICIALES);
+    setDetalle(null);
+    limpiarFiltros();
   }
 
   function votar() {
@@ -220,6 +270,10 @@ export default function App() {
               </select>
             </div>
             <p className="muted">{filtrados.length} resultado(s) · Rol actual: <strong>{rolActual.nombre}</strong></p>
+            <div className="row">
+              <button className="sm" onClick={limpiarFiltros}>Limpiar filtros</button>
+              <button className="sm" onClick={restablecerDemo}>Restablecer demo</button>
+            </div>
           </section>
 
           <section className="cards">
@@ -337,7 +391,7 @@ export default function App() {
       )}
 
       <footer>
-        <small>EduRepo · Prototipo Actividad 2 — Especialización Didáctica TIC · Universidad de Cartagena · Uso académico · Respeta derechos de autor (Ley 23/1982, Ley 1915/2018) y cita en APA v7.</small>
+        <small>EduRepo · Prototipo Actividad 2 — Especialización Didáctica TIC · Universidad de Cartagena · Presenta: <strong>JUANA YASIRIS VALOYES SERNA</strong> · Uso académico · Respeta derechos de autor (Ley 23/1982, Ley 1915/2018) y cita en APA v7.</small>
       </footer>
     </div>
   );
